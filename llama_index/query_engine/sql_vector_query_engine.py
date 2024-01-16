@@ -1,7 +1,7 @@
 """SQL Vector query engine."""
 
 import logging
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, List
 
 from llama_index.callbacks.base import CallbackManager
 from llama_index.indices.struct_store.sql_query import (
@@ -24,7 +24,6 @@ from llama_index.service_context import ServiceContext
 from llama_index.tools.query_engine import QueryEngineTool
 
 logger = logging.getLogger(__name__)
-
 
 DEFAULT_SQL_VECTOR_SYNTHESIS_PROMPT_TMPL = """
 The original question is given below.
@@ -75,22 +74,24 @@ class SQLAutoVectorQueryEngine(SQLJoinQueryEngine):
     """
 
     def __init__(
-        self,
-        sql_query_tool: QueryEngineTool,
-        vector_query_tool: QueryEngineTool,
-        selector: Optional[Union[LLMSingleSelector, PydanticSingleSelector]] = None,
-        service_context: Optional[ServiceContext] = None,
-        sql_vector_synthesis_prompt: Optional[BasePromptTemplate] = None,
-        sql_augment_query_transform: Optional[SQLAugmentQueryTransform] = None,
-        use_sql_vector_synthesis: bool = True,
-        callback_manager: Optional[CallbackManager] = None,
-        verbose: bool = True,
+            self,
+            sql_query_tool: List[QueryEngineTool],
+            vector_query_tool: List[QueryEngineTool],
+            selector: Optional[Union[LLMSingleSelector, PydanticSingleSelector]] = None,
+            service_context: Optional[ServiceContext] = None,
+            sql_vector_synthesis_prompt: Optional[BasePromptTemplate] = None,
+            sql_augment_query_transform: Optional[SQLAugmentQueryTransform] = None,
+            use_sql_vector_synthesis: bool = True,
+            callback_manager: Optional[CallbackManager] = None,
+            verbose: bool = True,
     ) -> None:
         """Initialize params."""
         # validate that the query engines are of the right type
-        if not isinstance(
-            sql_query_tool.query_engine,
-            (BaseSQLTableQueryEngine, NLSQLTableQueryEngine),
+        if not all(
+                [isinstance(
+                    query_engine_.query_engine,
+                    (BaseSQLTableQueryEngine, NLSQLTableQueryEngine)
+                ) for query_engine_ in sql_query_tool]
         ):
             raise ValueError(
                 "sql_query_tool.query_engine must be an instance of "
@@ -102,7 +103,7 @@ class SQLAutoVectorQueryEngine(SQLJoinQueryEngine):
                 "RetrieverQueryEngine"
             )
         if not isinstance(
-            vector_query_tool.query_engine.retriever, VectorIndexAutoRetriever
+                vector_query_tool.query_engine.retriever, VectorIndexAutoRetriever
         ):
             raise ValueError(
                 "vector_query_tool.query_engine.retriever must be an instance "
@@ -110,7 +111,7 @@ class SQLAutoVectorQueryEngine(SQLJoinQueryEngine):
             )
 
         sql_vector_synthesis_prompt = (
-            sql_vector_synthesis_prompt or DEFAULT_SQL_VECTOR_SYNTHESIS_PROMPT
+                sql_vector_synthesis_prompt or DEFAULT_SQL_VECTOR_SYNTHESIS_PROMPT
         )
         super().__init__(
             sql_query_tool,
@@ -142,15 +143,15 @@ class SQLAutoVectorQueryEngine(SQLJoinQueryEngine):
 
     @classmethod
     def from_sql_and_vector_query_engines(
-        cls,
-        sql_query_engine: Union[BaseSQLTableQueryEngine, NLSQLTableQueryEngine],
-        sql_tool_name: str,
-        sql_tool_description: str,
-        vector_auto_retriever: RetrieverQueryEngine,
-        vector_tool_name: str,
-        vector_tool_description: str,
-        selector: Optional[Union[LLMSingleSelector, PydanticSingleSelector]] = None,
-        **kwargs: Any,
+            cls,
+            sql_query_engine: Union[BaseSQLTableQueryEngine, NLSQLTableQueryEngine],
+            sql_tool_name: str,
+            sql_tool_description: str,
+            vector_auto_retriever: RetrieverQueryEngine,
+            vector_tool_name: str,
+            vector_tool_description: str,
+            selector: Optional[Union[LLMSingleSelector, PydanticSingleSelector]] = None,
+            **kwargs: Any,
     ) -> "SQLAutoVectorQueryEngine":
         """From SQL and vector query engines.
 
